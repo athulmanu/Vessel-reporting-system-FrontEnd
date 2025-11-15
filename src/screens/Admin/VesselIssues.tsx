@@ -1,5 +1,14 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+  TextInput,
+} from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useFetchIssues, useUpdateIssue } from '../../hooks/useIssues';
 import { IssueCard } from '../../components/IssueCard';
@@ -12,10 +21,31 @@ export default function VesselIssues() {
   // @ts-ignore
   const vesselId = route.params?.vesselId;
 
-  const { data: issuesData, isLoading, error, refetch } = useFetchIssues(vesselId);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(searchInput.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  const { data: issuesData, isLoading, error, refetch, isFetching } = useFetchIssues({
+    vesselId,
+    search: searchTerm || undefined,
+    page,
+    limit,
+  });
   const updateIssue = useUpdateIssue();
 
   const issues = issuesData?.data.issues || [];
+  const pagination = issuesData?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+  const isRefreshing = isFetching && !isLoading;
 
   const handleResolve = (issueId: string) => {
     Alert.alert(
@@ -50,35 +80,66 @@ export default function VesselIssues() {
     return <Error message="Failed to load issues" onRetry={() => refetch()} />;
   }
 
-  if (issues.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No issues found for this vessel</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <FlatList
-        data={issues}
-        renderItem={({ item }) => (
-          <View>
-            <IssueCard issue={item} />
-            {item.status !== 'Resolved' && item.status !== 'Closed' && (
-              <TouchableOpacity
-                style={styles.resolveButton}
-                onPress={() => handleResolve(item._id)}
-              >
-                <Text style={styles.resolveButtonText}>Mark as Resolved</Text>
-              </TouchableOpacity>
-            )}
+      <View style={styles.controls}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search issues..."
+          value={searchInput}
+          onChangeText={setSearchInput}
+        />
+        <View style={styles.pagination}>
+          <Text style={styles.paginationText}>
+            Page {pagination?.page ?? 1} / {totalPages}
+          </Text>
+          <View style={styles.paginationButtons}>
+            <TouchableOpacity
+              style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+              onPress={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page === 1}
+            >
+              <Text style={styles.pageButtonText}>Prev</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.pageButton,
+                pagination && page >= totalPages && styles.pageButtonDisabled,
+              ]}
+              onPress={() => {
+                if (pagination && page >= totalPages) return;
+                setPage((prev) => prev + 1);
+              }}
+              disabled={pagination ? page >= totalPages : false}
+            >
+              <Text style={styles.pageButtonText}>Next</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
-      />
+        </View>
+      </View>
+
+      {issues.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No issues found for this vessel</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={issues}
+          renderItem={({ item }) => (
+            <View>
+              <IssueCard issue={item} />
+              {item.status !== 'Resolved' && item.status !== 'Closed' && (
+                <TouchableOpacity style={styles.resolveButton} onPress={() => handleResolve(item._id)}>
+                  <Text style={styles.resolveButtonText}>Mark as Resolved</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refetch} />}
+        />
+      )}
     </View>
   );
 }
@@ -90,6 +151,46 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+  },
+  controls: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    gap: 12,
+  },
+  searchInput: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  paginationText: {
+    color: '#555',
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#a0a0a0',
+  },
+  pageButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

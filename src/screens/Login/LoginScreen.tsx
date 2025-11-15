@@ -25,13 +25,16 @@ export default function LoginScreen() {
   }, [isAuthenticated, user]);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+    const sanitizedEmail = email.trim().toLowerCase();
+    const sanitizedPassword = password.trim();
+
+    if (!sanitizedEmail || !sanitizedPassword) {
       Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
     try {
-      await loginAsync({ email: email.trim(), password });
+      await loginAsync({ email: sanitizedEmail, password: sanitizedPassword });
       // Navigation will happen automatically via AppNavigator
     } catch (error: any) {
       const errorMessage =

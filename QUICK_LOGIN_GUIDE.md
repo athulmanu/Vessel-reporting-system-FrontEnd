@@ -1,8 +1,11 @@
 # 🚀 Quick Login Guide
 
-## Your Computer IP: `192.168.1.165`
+## Your Computer IP: `ip`
 
-## Step 1: Create Test Users
+## Step 1: Create Test Users (Admin-Only Registration)
+
+The `/api/auth/register` endpoint now requires an authenticated admin token. Use the seeded admin
+(`admin@vessel.com / admin123`) or any existing admin account to create additional users.
 
 **Option A: Run the script (Easiest)**
 ```bash
@@ -10,19 +13,23 @@ cd Backend
 npm start
 # In another terminal:
 cd ../FrontEnd/MarineWorld
-node scripts/create-test-users.js
+ADMIN_LOGIN_EMAIL=admin@vessel.com ADMIN_LOGIN_PASSWORD=admin123 node scripts/create-test-users.js
 ```
 
 **Option B: Use Postman/API Client**
 ```bash
-POST http://localhost:3000/api/auth/register
+# 1) Login as admin to get a token
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
 {
   "email": "admin@vessel.com",
-  "password": "admin123",
-  "role": "admin"
+  "password": "admin123"
 }
 
+# 2) Use the token to register another user
 POST http://localhost:3000/api/auth/register
+Authorization: Bearer YOUR_ADMIN_JWT
+Content-Type: application/json
 {
   "email": "crew@vessel.com",
   "password": "crew123",

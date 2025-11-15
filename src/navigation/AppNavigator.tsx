@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +18,7 @@ import VesselIssues from '../screens/Admin/VesselIssues';
 
 const Stack = createNativeStackNavigator();
 
-// Crew Navigator
+// Crew Navigator Component
 function CrewNavigator() {
   const { logout } = useAuth();
 
@@ -57,7 +57,7 @@ function CrewNavigator() {
   );
 }
 
-// Admin Navigator
+// Admin Navigator Component
 function AdminNavigator() {
   const { logout } = useAuth();
 
@@ -85,8 +85,37 @@ function AdminNavigator() {
   );
 }
 
+// Login Navigator Component
+function LoginNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 export default function AppNavigator() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const [navKey, setNavKey] = useState<string>('login');
+  const keyCounterRef = React.useRef(0);
+
+  // Update navigation key when auth state changes
+  useEffect(() => {
+    if (!isLoading) {
+      keyCounterRef.current += 1;
+      if (!isAuthenticated) {
+        setNavKey(`login-${keyCounterRef.current}`);
+      } else if (user?.role === 'admin') {
+        setNavKey(`admin-${user._id}-${keyCounterRef.current}`);
+      } else {
+        setNavKey(`crew-${user?._id}-${keyCounterRef.current}`);
+      }
+    }
+  }, [isAuthenticated, isLoading, user?._id, user?.role]);
 
   if (isLoading) {
     return (
@@ -96,31 +125,21 @@ export default function AppNavigator() {
     );
   }
 
+  // Determine which navigator to render
+  let NavigatorComponent;
+
+  if (!isAuthenticated) {
+    NavigatorComponent = LoginNavigator;
+  } else if (user?.role === 'admin') {
+    NavigatorComponent = AdminNavigator;
+  } else {
+    NavigatorComponent = CrewNavigator;
+  }
+
+  // Use key with timestamp to force complete remount when auth state changes
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: true }}>
-        {!isAuthenticated ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-        ) : user?.role === 'admin' ? (
-          <Stack.Screen
-            name="Admin"
-            component={AdminNavigator}
-            options={{ headerShown: false }}
-          />
-        ) : (
-          <Stack.Screen
-            name="Crew"
-            component={CrewNavigator}
-            options={({ navigation }) => ({
-              headerShown: false,
-            })}
-          />
-        )}
-      </Stack.Navigator>
+    <NavigationContainer key={navKey}>
+      <NavigatorComponent />
     </NavigationContainer>
   );
 }

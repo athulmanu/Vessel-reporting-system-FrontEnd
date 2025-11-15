@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { tokenStorage } from '../api/axiosClient';
@@ -10,7 +10,17 @@ interface AuthState {
   isLoading: boolean;
 }
 
-export const useAuth = () => {
+interface AuthContextValue extends AuthState {
+  login: (credentials: LoginCredentials) => void;
+  loginAsync: (credentials: LoginCredentials) => Promise<any>;
+  isLoggingIn: boolean;
+  loginError: unknown;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
@@ -71,7 +81,7 @@ export const useAuth = () => {
     },
   });
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await tokenStorage.remove();
     queryClient.clear();
     setAuthState({
@@ -79,15 +89,28 @@ export const useAuth = () => {
       isAuthenticated: false,
       isLoading: false,
     });
-  };
+  }, [queryClient]);
 
-  return {
-    ...authState,
-    login: loginMutation.mutate,
-    loginAsync: loginMutation.mutateAsync,
-    isLoggingIn: loginMutation.isPending,
-    loginError: loginMutation.error,
-    logout,
-  };
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      ...authState,
+      login: loginMutation.mutate,
+      loginAsync: loginMutation.mutateAsync,
+      isLoggingIn: loginMutation.isPending,
+      loginError: loginMutation.error,
+      logout,
+    }),
+    [authState, loginMutation.error, loginMutation.isPending, loginMutation.mutate, loginMutation.mutateAsync, logout]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
 

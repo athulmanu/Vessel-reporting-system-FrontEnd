@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logger } from '../utils/logger';
 
 const API_BASE_URL = 'http://192.168.1.165:3000/api';
 const TOKEN_KEY = '@vessel_app_token';
@@ -22,8 +23,8 @@ apiClient.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (error) {
-      console.error('Error getting token from storage:', error);
+      } catch (error) {
+        logger.error('AsyncStorage token read failed', { error: (error as Error).message });
     }
     return config;
   },
@@ -41,7 +42,7 @@ apiClient.interceptors.response.use(
       try {
         await AsyncStorage.multiRemove([TOKEN_KEY, USER_ROLE_KEY, USER_ID_KEY]);
       } catch (storageError) {
-        console.error('Error clearing storage:', storageError);
+        logger.error('AsyncStorage token clear failed', { error: (storageError as Error).message });
       }
     }
     return Promise.reject(error);
@@ -58,14 +59,14 @@ export const tokenStorage = {
         [USER_ID_KEY, userId],
       ]);
     } catch (error) {
-      console.error('Error saving token:', error);
+      logger.error('AsyncStorage token save failed', { error: (error as Error).message });
     }
   },
   get: async (): Promise<string | null> => {
     try {
       return await AsyncStorage.getItem(TOKEN_KEY);
     } catch (error) {
-      console.error('Error getting token:', error);
+      logger.error('AsyncStorage token fetch failed', { error: (error as Error).message });
       return null;
     }
   },
@@ -73,7 +74,7 @@ export const tokenStorage = {
     try {
       return await AsyncStorage.getItem(USER_ROLE_KEY);
     } catch (error) {
-      console.error('Error getting role:', error);
+      logger.error('AsyncStorage role fetch failed', { error: (error as Error).message });
       return null;
     }
   },
@@ -81,7 +82,7 @@ export const tokenStorage = {
     try {
       return await AsyncStorage.getItem(USER_ID_KEY);
     } catch (error) {
-      console.error('Error getting userId:', error);
+      logger.error('AsyncStorage userId fetch failed', { error: (error as Error).message });
       return null;
     }
   },
@@ -89,7 +90,7 @@ export const tokenStorage = {
     try {
       await AsyncStorage.multiRemove([TOKEN_KEY, USER_ROLE_KEY, USER_ID_KEY]);
     } catch (error) {
-      console.error('Error removing token:', error);
+      logger.error('AsyncStorage remove token failed', { error: (error as Error).message });
     }
   },
 };

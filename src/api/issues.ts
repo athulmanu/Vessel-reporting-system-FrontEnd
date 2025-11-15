@@ -1,9 +1,11 @@
 import { apiClient } from './axiosClient';
 import { Issue, CreateIssueData, UpdateIssueData, RecommendationsResponse } from '../types/issue';
+import { PaginationMeta } from '../types/common';
 
 export interface IssuesResponse {
   success: boolean;
   count: number;
+  pagination?: PaginationMeta;
   data: {
     issues: Issue[];
     message?: string;
@@ -18,22 +20,32 @@ export interface IssueResponse {
   };
 }
 
+export interface IssueListParams {
+  vesselId?: string;
+  status?: string;
+  priority?: string;
+  category?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface MyIssueListParams {
+  status?: string;
+  priority?: string;
+  category?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
 export const issuesApi = {
-  getAll: async (params?: {
-    vesselId?: string;
-    status?: string;
-    priority?: string;
-    category?: string;
-  }): Promise<IssuesResponse> => {
+  getAll: async (params?: IssueListParams): Promise<IssuesResponse> => {
     const response = await apiClient.get<IssuesResponse>('/issues', { params });
     return response.data;
   },
 
-  getMyIssues: async (params?: {
-    status?: string;
-    priority?: string;
-    category?: string;
-  }): Promise<IssuesResponse> => {
+  getMyIssues: async (params?: MyIssueListParams): Promise<IssuesResponse> => {
     const response = await apiClient.get<IssuesResponse>('/issues/my-issues', { params });
     return response.data;
   },

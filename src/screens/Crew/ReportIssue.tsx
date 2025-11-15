@@ -27,7 +27,16 @@ export default function ReportIssue() {
   const [priority, setPriority] = useState<IssuePriority>('Medium');
 
   const { data: myIssuesData } = useFetchMyIssues();
-  const { data: vesselIssuesData } = useFetchIssues(vesselId || undefined);
+  const { data: vesselIssuesData } = useFetchIssues(
+    vesselId
+      ? {
+          vesselId,
+          page: 1,
+          limit: 10,
+        }
+      : undefined,
+    { enabled: !!vesselId }
+  );
   const createIssue = useCreateIssue();
   
   // Extract unique vessels from issues

@@ -1,28 +1,27 @@
 # How to Login to Vessel Issue Reporting System
 
-## Step 1: Create Test Users (If Not Already Created)
+## Step 1: Create Test Users (Admin Token Required)
 
-You need to create users in your backend. You can do this via API or directly in the database.
+The `/api/auth/register` route is restricted to authenticated admins. Use the seeded admin
+(`admin@vessel.com / admin123`) to obtain a token, or insert users directly via MongoDB.
 
-### Option A: Register Users via API (Recommended)
+### Option A: Register Users via API
 
-**Using Postman, curl, or any API client:**
-
-#### 1. Create Admin User:
+1. **Login as Admin**
 ```bash
-POST http://localhost:3000/api/auth/register
+POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
   "email": "admin@vessel.com",
-  "password": "admin123",
-  "role": "admin"
+  "password": "admin123"
 }
 ```
 
-#### 2. Create Crew User:
+2. **Register Target User**
 ```bash
 POST http://localhost:3000/api/auth/register
+Authorization: Bearer YOUR_ADMIN_JWT
 Content-Type: application/json
 
 {
@@ -34,7 +33,7 @@ Content-Type: application/json
 
 ### Option B: Use MongoDB Compass or CLI
 
-If you have direct database access, you can insert users directly.
+Insert documents directly if you prefer working in the database.
 
 ## Step 2: Update API URL (If Using Physical Device)
 

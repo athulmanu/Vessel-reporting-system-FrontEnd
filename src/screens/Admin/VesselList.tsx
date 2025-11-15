@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useFetchVessels, useDeleteVessel } from '../../hooks/useVessels';
@@ -18,11 +19,32 @@ import { Error } from '../../components/Error';
 
 export default function VesselList() {
   const navigation = useNavigation();
-  const { data, isLoading, error, refetch } = useFetchVessels();
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 5;
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchTerm(searchInput.trim());
+      setPage(1);
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  const { data, isLoading, error, refetch, isFetching } = useFetchVessels({
+    search: searchTerm || undefined,
+    page,
+    limit,
+  });
   const deleteVessel = useDeleteVessel();
   const maintenanceScan = useRunMaintenanceScan();
 
   const vessels = data?.data.vessels || [];
+  const pagination = data?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+  const isRefreshing = isFetching && !isLoading;
 
   const handleDelete = (vesselId: string, vesselName: string) => {
     Alert.alert(
@@ -79,29 +101,72 @@ export default function VesselList() {
     return <Error message="Failed to load vessels" onRetry={() => refetch()} />;
   }
 
+  const handleNext = () => {
+    if (pagination && page >= pagination.totalPages) return;
+    setPage((prev) => prev + 1);
+  };
+
+  const handlePrev = () => {
+    setPage((prev) => Math.max(prev - 1, 1));
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            // @ts-ignore
-            navigation.navigate('VesselForm');
-          }}
-        >
-          <Text style={styles.addButtonText}>+ Add Vessel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.scanButton, maintenanceScan.isPending && styles.buttonDisabled]}
-          onPress={handleMaintenanceScan}
-          disabled={maintenanceScan.isPending}
-        >
-          {maintenanceScan.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.scanButtonText}>Run Maintenance Scan</Text>
-          )}
-        </TouchableOpacity>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, IMO, flag..."
+          value={searchInput}
+          onChangeText={setSearchInput}
+          clearButtonMode="while-editing"
+        />
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              // @ts-ignore
+              navigation.navigate('VesselForm');
+            }}
+          >
+            <Text style={styles.addButtonText}>+ Add Vessel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.scanButton, maintenanceScan.isPending && styles.buttonDisabled]}
+            onPress={handleMaintenanceScan}
+            disabled={maintenanceScan.isPending}
+          >
+            {maintenanceScan.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.scanButtonText}>Run Maintenance Scan</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.paginationInfo}>
+        <Text style={styles.paginationText}>
+          Page {pagination?.page ?? 1} / {totalPages} · {pagination?.total ?? vessels.length} total
+        </Text>
+        <View style={styles.paginationButtons}>
+          <TouchableOpacity
+            style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
+            onPress={handlePrev}
+            disabled={page === 1}
+          >
+            <Text style={styles.pageButtonText}>Prev</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.pageButton,
+              pagination && page >= totalPages && styles.pageButtonDisabled,
+            ]}
+            onPress={handleNext}
+            disabled={pagination ? page >= totalPages : false}
+          >
+            <Text style={styles.pageButtonText}>Next</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {vessels.length === 0 ? (
@@ -141,7 +206,7 @@ export default function VesselList() {
           )}
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refetch} />}
         />
       )}
     </View>
@@ -154,12 +219,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    flexDirection: 'row',
     padding: 16,
     gap: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+  },
+  searchInput: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   addButton: {
     flex: 1,
@@ -225,6 +301,37 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#666',
+  },
+  paginationInfo: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  paginationText: {
+    color: '#555',
+    fontSize: 14,
+  },
+  paginationButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#a0a0a0',
+  },
+  pageButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 
